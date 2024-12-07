@@ -1,0 +1,1123 @@
+<html>
+<head>
+	<title>They're Everywhere!"</title>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+	<script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+
+    <style>
+	{ margin:0; padding:0; } /* to remove the top and left whitespace */
+	html, body { 
+		width:100%; 
+		height:100%; 
+		margin: 0; 
+		padding: 0; 
+		overflow: hidden; /* Removes scrollbars */
+	} 
+	canvas { display:block; }
+    </style>
+</head>
+<body>
+    <canvas id="main_canvas"></canvas>
+
+    <script>
+        (function() 
+		{
+            const canvas = document.getElementById("main_canvas");
+            const context = canvas.getContext("2d");
+
+            // Resize the canvas to fill browser window dynamically
+            window.addEventListener("resize", resizeCanvas, false);
+
+            function resizeCanvas() 
+			{
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+
+            resizeCanvas();
+
+            var current_state = "Idle";
+			var keysPressed = {}; //key pressed dictionary	
+			var control = "keyboard";
+			var mousedown = false;
+			
+			document.addEventListener("keydown", (e) => 
+			{
+				if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key))  // only store the arrow keys
+				{
+					control = "keyboard";
+					keysPressed[e.key] = true;
+					updateState(mysprites[0]);
+				}
+			});
+
+			document.addEventListener("keyup", (e) => 
+			{
+				if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) 
+				{
+					keysPressed[e.key] = false; // Mark the key as released
+					updateState(mysprites[0]);
+				}
+			});
+			
+
+			function updateState(sprite) 
+			{
+				if (keysPressed["ArrowUp"] && keysPressed["ArrowLeft"]) 
+				{
+					sprite.next_action = "NorthWest";
+				} 
+				else if (keysPressed["ArrowUp"] && keysPressed["ArrowRight"]) 
+				{
+					sprite.next_action = "NorthEast";
+				} 
+				else if (keysPressed["ArrowDown"] && keysPressed["ArrowLeft"]) 
+				{
+					sprite.next_action = "SouthWest";
+				} 
+				else if (keysPressed["ArrowDown"] && keysPressed["ArrowRight"]) 
+				{
+					sprite.next_action = "SouthEast";
+				} 
+				else if (keysPressed["ArrowUp"]) 
+				{
+					sprite.next_action = "North";
+				} 
+				else if (keysPressed["ArrowDown"]) 
+				{
+					sprite.next_action = "South";
+				} 
+				else if (keysPressed["ArrowLeft"]) 
+				{
+					sprite.next_action = "West";
+				} 
+				else if (keysPressed["ArrowRight"]) 
+				{
+					sprite.next_action = "East";
+				} 
+				else 
+				{
+					sprite.next_action = "Idle"; // No keys pressed
+				}
+
+			}
+
+
+			var accel = 10;
+			
+			canvas.addEventListener("mousedown", (e) => 
+			{
+				const rect = canvas.getBoundingClientRect();
+				const mouseX = e.clientX - rect.left;
+				const mouseY = e.clientY - rect.top;
+
+				mousedown = true;
+				control = "mouse";
+				
+				for (const sprite of mysprites) 
+				{
+					sprite.destination_x = Math.round(mouseX / accel) * accel;
+					sprite.destination_y = Math.round(mouseY / accel) * accel;
+					if (sprite.name === "main")
+					{
+						
+					}
+				}
+			});
+
+			canvas.addEventListener("mousemove", (e) => 
+			{
+				const rect = canvas.getBoundingClientRect();
+				const mouseX = e.clientX - rect.left;
+				const mouseY = e.clientY - rect.top;
+
+				if (mousedown)
+				{
+					control = "mouse";
+					for (const sprite of mysprites) 
+					{
+						sprite.destination_x = Math.round(mouseX / accel) * accel;
+						sprite.destination_y = Math.round(mouseY / accel) * accel;
+					}
+				}
+			});
+
+			canvas.addEventListener("mouseup", () => 
+			{
+				mousedown = false;
+			});
+
+			const jsonfile = "imgs/Penguins/animationData.json"
+			const pathStrSplit = jsonfile.split('/');
+			const fileName = pathStrSplit.pop();
+			const directoryName = pathStrSplit.join('/');
+			var sprite_name = "TenderBud"
+			img_path = directoryName + '/' + sprite_name;
+			
+			var animations = {};
+			
+			$.getJSON(jsonfile, function (data) // load all sprites
+			{
+				sprite_data = data;
+				let totalFrames = 0;
+				let loadedFrames = 0;
+
+				for (const property in data[sprite_name]) 
+				{
+					const animation = {
+						name: property,
+						meta: data[sprite_name][property],
+						imgs: [] // To hold preloaded images
+					};
+
+					for (let i = 0; i < animation.meta.length; i++) 
+					{
+						const frame = animation.meta[i];
+						const img = new Image();
+
+						img.src = img_path + "/" + animation.name + "/" + i + ".png";
+						totalFrames++;
+
+						img.onload = () => 
+						{
+							loadedFrames++;
+							if (loadedFrames === totalFrames) {
+								console.log("All frames preloaded.");
+							}
+						};
+
+						animation.imgs.push(img);
+					}
+
+					animations[property] = animation;
+				}
+			});
+
+			function getRandomIdle() 
+			{
+				const idleAnimations = [
+					{ name: "idle", weight: 70 },
+					{ name: "idleBackAndForth", weight: 50 },
+					{ name: "idleBreathing", weight: 50 },
+					{ name: "idleFall", weight: 1 },
+					{ name: "idleLayDown", weight: 5 },
+					{ name: "idleLookAround", weight: 20 },
+					{ name: "idleLookDown", weight: 20 },
+					{ name: "idleLookLeft", weight: 20 },
+					{ name: "idleLookRight", weight: 20},
+					{ name: "idleLookUp", weight: 20 },
+					{ name: "idleSit", weight: 10 },
+					{ name: "idleSpin", weight: 10 },
+					{ name: "idleWave", weight: 10 }
+				];
+
+				const totalWeight = idleAnimations.reduce((sum, anim) => sum + anim.weight, 0);
+
+				const randomWeight = Math.random() * totalWeight;
+				let cumulativeWeight = 0;
+				for (const anim of idleAnimations) 
+				{
+					cumulativeWeight += anim.weight;
+					if (randomWeight < cumulativeWeight) 
+					{
+						return anim.name;
+					}
+				}
+			}
+				
+
+            class Sprite 
+			{
+                constructor(x, y, name) 
+				{
+                    this.name = name;
+					
+                    this.current_x = x;
+                    this.current_y = y;					
+					this.next_x = this.current_x;
+					this.next_y = this.current_y;
+					
+					this.current_center_x = 0;
+					this.current_center_y = 0;					
+					this.next_center_x = 0;
+					this.next_center_y = 0;
+
+                    this.current_frame = 0;
+					this.next_frame = 0;
+					
+					this.current_h = 0;
+                    this.current_w = 0;					
+					this.next_h = 0;
+					this.next_w = 0;
+					
+                    this.current_action = "idle";
+					this.next_action = "Idle";
+					
+                    this.scale = .6;
+					
+                    this.velocity = { x: 0, y: 0 };
+					this.acceleration = { x: 0, y: 0 };
+					
+					this.max_speed = 10;
+                }
+				
+				
+				print_all_current()
+				{
+					console.log("Current:",            
+					"\ncurrent_x:", this.current_x,
+					"\ncurrent_y:", this.current_y,
+					"\ncurrent_center_x:", this.current_center_x,
+					"\ncurrent_center_y:", this.current_center_y,
+					"\ncurrent_frame:", this.current_frame,
+					"\ncurrent_h:", this.current_h,
+					"\ncurrent_w:", this.current_w,
+					"\ncurrent_action:", this.current_action);
+				}
+				
+				print_all_next()
+				{
+					console.log("Next:",   
+						"\nnext_x:", this.next_x,
+						"\nnext_y:", this.next_y,
+						"\nnext_frame:", this.next_frame,
+						"\nnext_center_x:", this.next_center_x,
+						"\nnext_center_y:", this.next_center_y,				
+						"\nnext_h:", this.next_h,
+						"\nnext_w:", this.next_w,
+						"\nnext_action:", this.next_action);
+				}
+
+				set_current_x(x)
+				{
+					this.current_x = x;
+				}
+				
+				set_next_x(x)
+				{
+					this.next_x = x;
+				}
+
+				set_current_y(y)
+				{
+                    this.current_y = y;
+				}
+								
+				set_next_y(y)
+				{
+					this.next_y = y;
+				}
+				
+				set_location(x, y)
+				{
+					this.current_x = x;
+                    this.current_y = y;
+				}
+								
+				set_next_location(x, y)
+				{
+					this.next_x = x;
+					this.next_y = y;
+				}
+
+				set_current_height(h)
+				{
+					this.current_h = h * this.scale;
+				}
+				
+				set_next_height(h)
+				{
+					this.next_h = h * this.scale;
+				}
+				
+				set_current_width(w)
+				{
+					this.current_w = w * this.scale;
+				}
+								
+				set_next_width(w)
+				{
+					this.next_w = w * this.scale;
+				}
+				
+				set_current_center()
+				{
+					this.current_center_x = Math.round(this.current_x + (this.current_w / 2));
+					this.current_center_y = Math.round(this.current_y + (this.current_h / 2));
+				}
+
+				set_next_center()
+				{
+					this.next_center_x = Math.round(this.next_x + (this.next_w / 2));
+					this.next_center_y = Math.round(this.next_y + (this.next_h / 2));
+				}
+
+				set_current_action(action) 
+				{
+                    this.current_action = action;
+                }
+				
+				set_next_action(action)
+				{
+					this.next_action = action;
+				}
+				
+				get_action(action)
+				{
+					switch (action) 
+					{
+					case "East":
+						return "walk_E";
+					case "West":
+						return "walk_W";
+					case "South":
+						return "walk_S";
+					case "North":
+						return "walk_N";
+					case "NorthEast":
+						return "walk_NE";
+					case "NorthWest":
+						return "walk_NW";
+					case "SouthEast":
+						return "walk_SE";
+					case "SouthWest":
+						return "walk_SW";
+					case "Idle":
+						// keep random idle animation
+						if (this.current_action.startsWith("idle"))
+						{
+							return this.current_action;
+						}
+						else  // change to idle animation
+						{
+							return "idle";
+						}
+					}
+				}
+				
+				reset_frames(action)
+				{
+					try 
+					{
+                        if (this.current_frame >= action["meta"].length) 
+						{
+                            this.current_frame = 0;
+							
+							if (this.current_action.startsWith("idle"))
+							{
+								this.current_action = getRandomIdle();
+							}
+                        }
+                    } 
+					catch (error) 
+					{	
+						console.log("reset_frames - Waiting!");
+                        return;
+                    } // json not loaded yet.
+				
+				}
+				
+				is_img_loaded(action, frame)
+				{
+				    if (action["imgs"][frame] == null) 
+					{
+						console.log("No picture was loaded, adding now!");
+                        action["imgs"][frame] = new Image();
+                        action["imgs"][frame].src = this.img_path + "/" + action["name"] + "/" + frame + ".png";
+                    }
+				}
+
+				set_next_frame()
+				{
+					var action = this.get_action(this.next_action);
+					
+					var animation_array = animations[action];
+					
+					if (action == this.current_action)
+					{
+						if (this.current_frame + 1 >= animation_array["meta"].length) 
+						{
+							this.next_frame = 0;
+							
+							if (action.startsWith("idle"))
+							{
+								this.current_action = getRandomIdle();
+							}
+							animation_array = animations[this.current_action];
+							
+							this.set_next_height(animation_array["meta"][this.next_frame]["h"]);
+							this.set_next_width(animation_array["meta"][this.next_frame]["w"]);
+							
+							
+							return;
+						}
+						
+						this.next_frame = this.current_frame + 1;
+						this.set_next_height(animation_array["meta"][this.next_frame]["h"]);
+						this.set_next_width(animation_array["meta"][this.next_frame]["w"]);
+						
+						return;
+					}
+					
+					this.next_frame = 0;
+					this.set_next_height(animation_array["meta"][this.next_frame]["h"]);
+					this.set_next_width(animation_array["meta"][this.next_frame]["w"]);
+
+				}
+
+				run()
+				{
+					this.current_action = this.get_action(this.next_action);
+					
+					var action = animations[this.current_action];
+
+					if (action == null) // wait for everything to fully load
+					{
+						return; 	
+					}
+
+					//this.reset_frames(action);
+					
+                    var frame = this.next_frame;
+					
+					this.current_frame = this.next_frame;
+					
+					this.set_current_x(this.next_x);
+					this.set_current_y(this.next_y);
+					
+					this.set_current_height(action["meta"][frame]["h"]);
+					this.set_current_width(action["meta"][frame]["w"]);
+					this.set_current_center();
+					
+					this.is_img_loaded(action, frame);	
+
+                    var c = document.getElementById("main_canvas");
+                    var ctx = c.getContext("2d");
+
+                    try 
+					{
+                        ctx.drawImage(
+							action["imgs"][frame], 
+							this.current_x, 
+							this.current_y,
+                            this.current_w,
+                            this.current_h
+						);
+
+                    }
+					catch (error) 
+					{
+                        console.log(error);
+                    }										
+
+				}
+			
+			}
+			
+			
+			class user_control extends Sprite
+			{
+				constructor(x, y, name) 
+				{
+					super(x, y, name);
+					
+					// used for mouse controls
+					this.destination_x = 0;
+					this.destination_y = 0;
+				}
+				
+				
+				compare_sprites(other) 
+				{
+					if (other.current_x != this.current_x) 
+					{
+						console.log("Current X Position - Old:", other.current_x, "New:", this.current_x);
+					}
+
+					if (other.current_y != this.current_y) 
+					{
+						console.log("Current Y Position - Old:", other.current_y, "New:", this.current_y);
+					}
+
+					if (other.next_x != this.next_x) 
+					{
+						console.log("Next X Position - Old:", other.next_x, "New:", this.next_x);
+					}
+
+					if (other.next_y != this.next_y) 
+					{
+						console.log("Next Y Position - Old:", other.next_y, "New:", this.next_y);
+					}
+
+					if (other.current_center_x != this.current_center_x) 
+					{
+						console.log("Current Center X - Old:", other.current_center_x, "New:", this.current_center_x);
+					}
+
+					if (other.current_center_y != this.current_center_y) 
+					{
+						console.log("Current Center Y - Old:", other.current_center_y, "New:", this.current_center_y);
+					}
+
+					if (other.next_center_x != this.next_center_x) 
+					{
+						console.log("Next Center X - Old:", other.next_center_x, "New:", this.next_center_x);
+					}
+
+					if (other.next_center_y != this.next_center_y) 
+					{
+						console.log("Next Center Y - Old:", other.next_center_y, "New:", this.next_center_y);
+					}
+
+					if (other.current_frame != this.current_frame) 
+					{
+						console.log("Current Frame - Old:", other.current_frame, "New:", this.current_frame);
+					}
+
+					if (other.next_frame != this.next_frame) 
+					{
+						console.log("Next Frame - Old:", other.next_frame, "New:", this.next_frame);
+					}
+
+					if (other.current_h != this.current_h) 
+					{
+						console.log("Current Height - Old:", other.current_h, "New:", this.current_h);
+					}
+
+					if (other.current_w != this.current_w) 
+					{
+						console.log("Current Width - Old:", other.current_w, "New:", this.current_w);
+					}
+
+					if (other.next_h != this.next_h) 
+					{
+						console.log("Next Height - Old:", other.next_h, "New:", this.next_h);
+					}
+
+					if (other.next_w != this.next_w) 
+					{
+						console.log("Next Width - Old:", other.next_w, "New:", this.next_w);
+					}
+
+					if (other.current_action != this.current_action) 
+					{
+						console.log("Current Action - Old:", other.current_action, "New:", this.current_action);
+					}
+
+					if (other.next_action != this.next_action) 
+					{
+						console.log("Next Action - Old:", other.next_action, "New:", this.next_action);
+					}
+
+					if (other.destination_x != this.destination_x) 
+					{
+						console.log("Destination X - Old:", other.destination_x, "New:", this.destination_x);
+					}
+
+					if (other.destination_y != this.destination_y) 
+					{
+						console.log("Destination Y - Old:", other.destination_y, "New:", this.destination_y);
+					}
+				}
+
+				
+				
+				
+				print_destinations()
+				{
+					console.log("Dest X:", this.destination_x, "\nDest Y:", this.destination_x);
+				}
+				
+				set_destination_x(x)
+				{
+					this.destination_x = x;
+				}
+				
+				set_destination_y(y)
+				{
+					this.destination_y = y;
+				}
+				
+				update() 
+				{		
+					if (control == "mouse") 
+					{
+						this.get_direction();
+					}
+					
+					this.set_next_frame();	
+
+					this.move();
+
+				}
+
+				get_direction()
+				{
+					const x_dir = this.destination_x - this.current_center_x; // Direction on x-axis
+					const y_dir = this.destination_y - this.current_center_y; // Direction on y-axis
+
+					let tolerance_x = this.max_speed;
+					let tolerance_y = this.max_speed;
+					
+
+					if (x_dir > tolerance_x && y_dir < -tolerance_y) 
+					{
+						this.next_action = "NorthEast";
+					} 
+					else if (x_dir > tolerance_x && y_dir > tolerance_y) 
+					{
+						this.next_action = "SouthEast";
+					}
+					else if (x_dir < -tolerance_x && y_dir < -tolerance_y) 
+					{
+						this.next_action = "NorthWest";
+					} 
+					else if (x_dir < -tolerance_x && y_dir > tolerance_y) 
+					{
+						this.next_action = "SouthWest";
+					} 
+					else if (y_dir < -tolerance_y) 
+					{
+						this.next_action = "North";
+					} 
+					else if (y_dir > tolerance_y) 
+					{
+						this.next_action = "South";
+					} 
+					else if (x_dir > tolerance_x) 
+					{
+						this.next_action = "East";
+					} 
+					else if (x_dir < -tolerance_x) 
+					{
+						this.next_action = "West";
+					}
+					else
+					{
+						this.next_action = "Idle";
+						control = "keyboard";
+					}
+					
+
+				}
+		
+				pathing_snap()
+				{
+					
+					const x_direction = this.destination_x - this.next_center_x; // Direction on x-axis
+					const y_direction = this.destination_y - this.next_center_y; // Direction on y-axis
+
+
+					if (Math.abs(x_direction) < this.max_speed) 
+					{
+						this.set_destination_x(this.next_center_x);
+						this.set_next_location(this.current_x + x_direction, this.next_y);
+					}
+					
+					if (Math.abs(y_direction) < this.max_speed) 
+					{
+						this.set_destination_y(this.next_center_y);
+						this.set_next_location(this.next_x, this.current_y + y_direction);
+					}
+
+				}
+				
+				set_velocity_x()
+				{
+					this.velocity.x = 0;
+
+					if (this.current_action.includes("idle"))
+					{
+						return;
+					}
+					
+					if (this.current_action.includes("E"))
+					{
+						this.velocity.x = this.max_speed;
+					}
+					else if	(this.current_action.includes("W"))
+					{
+						this.velocity.x = -this.max_speed;
+					}
+				}
+				
+				set_velocity_y()
+				{
+					this.velocity.y = 0;
+					
+					if (this.current_action.includes("idle"))
+					{
+						return;
+					}
+					
+					if (this.current_action.includes("N"))
+					{
+						this.velocity.y = -this.max_speed;
+					}
+					else if	(this.current_action.includes("S"))
+					{
+						this.velocity.y = this.max_speed;
+					}
+					
+				}
+
+	  			check_bounds()
+				{
+					if (this.current_x <= 0) // left
+					{
+						this.set_current_x(0);
+						this.destination_x = this.current_w / 2;
+					}
+					
+					if (this.current_x + this.current_w >= canvas.width) // right
+					{
+						this.set_current_x(canvas.width - this.current_w); 
+						this.destination_x = canvas.width - (this.current_w / 2);
+					}
+					
+					if (this.current_y <= 0) // top
+					{
+						this.set_current_y(0);
+						this.destination_y = this.current_h / 2;
+					}
+
+					if (this.current_y + this.current_h >= canvas.height) // bottom
+					{
+						this.set_current_y(canvas.height - this.current_h);
+						this.destination_y = canvas.height - (this.current_h / 2);
+					}
+					
+				}
+      
+				move() 
+				{	
+
+					this.set_velocity_x();
+					this.set_velocity_y();
+
+					let step_x = this.velocity.x + this.acceleration.x;
+					let step_y = this.velocity.y + this.acceleration.y;
+					
+					this.set_next_location(this.current_x + step_x, this.current_y + step_y);
+					this.set_next_center();
+					<!-- if (control == "mouse")  -->
+					<!-- { -->
+						<!-- var temp = structuredClone(this); -->
+						<!-- console.log(this.velocity.x); -->
+					<!-- } -->
+					
+					
+					if (control == "mouse") 
+					{
+						this.pathing_snap();
+					}	
+
+					this.check_bounds();	
+
+					
+					<!-- if (control == "mouse")  -->
+					<!-- { -->
+						<!-- console.log(this.velocity.x); -->
+						<!-- this.compare_sprites(temp); -->
+					<!-- } -->
+					super.run();
+				}
+	  
+			}
+			
+			class boid_control extends Sprite 
+			{
+				constructor(x, y, name) 
+				{
+					super(x, y, name);
+					this.perceptionradius = 100; // Range to sense nearby boids
+					this.maxspeed = 10; // Maximum speed
+					this.maxforce = .2; // Maximum steering force
+					this.velocity = {
+						x: (Math.random() - 0.5) * 2, // Small random initial velocity
+						y: (Math.random() - 0.5) * 2
+					};
+
+				}
+
+				updateBoid(boids, mainSprite) {
+
+
+					let separationForce = this.separation(boids);
+					let alignmentForce = this.alignment(boids, mainSprite);
+					let cohesionForce = this.cohesion(boids, mainSprite);
+
+					// Weight forces for balancing
+					separationForce.x *= 1.5;
+					separationForce.y *= 1.5;
+
+					this.acceleration.x += separationForce.x + alignmentForce.x + cohesionForce.x;// something in here is making them null
+					this.acceleration.y += separationForce.y + alignmentForce.y + cohesionForce.y;
+
+
+					// Update velocity and limit speed
+					this.velocity.x += this.acceleration.x;
+					this.velocity.y += this.acceleration.y;
+
+					this.limit(this.velocity, this.maxspeed);
+
+
+					// Update position
+					this.next_x += this.velocity.x;
+					this.next_y += this.velocity.y;
+
+					// Reset acceleration for next frame
+					this.acceleration.x = 0;
+					this.acceleration.y = 0;
+
+					// Check bounds
+					this.check_bounds();
+
+					// Set the next action based on movement
+					this.move();
+
+				}
+
+				move() 
+				{
+					// Determine the direction of movement based on velocity
+					if (this.velocity.x > 0 && this.velocity.y < 0) {
+						this.next_action = "NorthEast";
+					} else if (this.velocity.x > 0 && this.velocity.y > 0) {
+						this.next_action = "SouthEast";
+					} else if (this.velocity.x < 0 && this.velocity.y < 0) {
+						this.next_action = "NorthWest";
+					} else if (this.velocity.x < 0 && this.velocity.y > 0) {
+						this.next_action = "SouthWest";
+					} else if (this.velocity.y < 0) {
+						this.next_action = "North";
+					} else if (this.velocity.y > 0) {
+						this.next_action = "South";
+					} else if (this.velocity.x > 0) {
+						this.next_action = "East";
+					} else if (this.velocity.x < 0) {
+						this.next_action = "West";
+					} else {
+						this.next_action = "Idle";
+					}
+					
+					this.set_next_frame();
+
+					// Call the parent's run method to render the sprite
+					super.run();
+				}
+				
+				separation(boids) {
+					let desiredSeparation = this.perceptionradius / 2;
+					let steer = { x: 0, y: 0 };
+					let count = 0;
+
+					for (let other of boids) {
+						let distance = this.distance(other);
+
+						// Skip invalid or self comparisons
+						if (distance === 0 || isNaN(distance)) 
+						{
+							continue;
+						}
+
+						if (other !== this && distance < desiredSeparation) {
+							let diff = { x: this.current_x - other.current_x, y: this.current_y - other.current_y };
+							this.normalize(diff);
+							diff.x /= distance; // Avoid dividing by zero or invalid values
+							diff.y /= distance;
+							steer.x += diff.x;
+							steer.y += diff.y;
+							count++;
+						}
+					}
+
+					if (count > 0) {
+						steer.x /= count;
+						steer.y /= count;
+						this.limit(steer, this.maxforce);
+					}
+
+					if (isNaN(steer.x) || isNaN(steer.y)) 
+					{
+						return { x: 0, y: 0 }; // Reset to safe default
+					}
+
+					return steer;
+				}
+
+				alignment(boids, mainSprite) 
+				{
+					let neighborDist = this.perceptionradius;
+					let sum = { x: mainSprite.velocity?.x || 0, y: mainSprite.velocity?.y || 0 }; // Include main sprite's velocity
+					let count = 1; // Start with 1 to account for the main sprite
+
+					for (let other of boids) {
+						let distance = this.distance(other);
+						if (other !== this && distance < neighborDist) {
+							sum.x += other.velocity.x;
+							sum.y += other.velocity.y;
+							count++;
+						}
+					}
+
+					if (count > 0) {
+						sum.x /= count;
+						sum.y /= count;
+						this.limit(sum, this.maxforce);
+					}
+
+					return sum;
+				}
+
+				cohesion(boids, mainSprite) 
+				{
+					let neighborDist = this.perceptionradius;
+					let sum = { x: mainSprite.current_x, y: mainSprite.current_y }; // Include main sprite's position
+					let count = 1; // Start with 1 to account for the main sprite
+
+					for (let other of boids) 
+					{
+						let distance = this.distance(other);
+						if (other !== this && distance < neighborDist) {
+						
+							sum.x += other.current_x;
+							sum.y += other.current_y;
+							count++;
+						}
+					}
+
+					if (count > 0) 
+					{
+						sum.x /= count;
+						sum.y /= count;
+
+						let desired = { x: sum.x - this.current_x, y: sum.y - this.current_y };
+						this.normalize(desired);
+						desired.x *= this.maxspeed;
+						desired.y *= this.maxspeed;
+
+						let steer = { x: desired.x - this.velocity.x, y: desired.y - this.velocity.y };
+						this.limit(steer, this.maxforce);
+
+						return steer;
+					}
+
+					return { x: 0, y: 0 };
+				}
+
+				distance(other) 
+				{
+					return Math.sqrt(
+						Math.pow(this.current_x - other.current_x, 2) + Math.pow(this.current_y - other.current_y, 2)
+					);
+				}
+
+				normalize(vector) 
+				{
+					let magnitude = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
+					if (magnitude > 0) {
+						vector.x /= magnitude;
+						vector.y /= magnitude;
+					}
+				}
+
+				limit(vector, max) 
+				{
+					let magnitude = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
+					if (magnitude > max) {
+						vector.x = (vector.x / magnitude) * max;
+						vector.y = (vector.y / magnitude) * max;
+					}
+				}
+
+				check_bounds() 
+				{
+					// Ensure the boid stays within canvas bounds
+					if (this.current_x <= 0) {
+						this.current_x = 0;
+						this.velocity.x = Math.abs(this.velocity.x); // Bounce off the left edge
+					}
+
+					if (this.current_x + this.current_w >= canvas.width) {
+						this.current_x = canvas.width - this.current_w;
+						this.velocity.x = -Math.abs(this.velocity.x); // Bounce off the right edge
+					}
+
+					if (this.current_y <= 0) {
+						this.current_y = 0;
+						this.velocity.y = Math.abs(this.velocity.y); // Bounce off the top edge
+					}
+
+					if (this.current_y + this.current_h >= canvas.height) {
+						this.current_y = canvas.height - this.current_h;
+						this.velocity.y = -Math.abs(this.velocity.y); // Bounce off the bottom edge
+					}
+				}
+			}
+
+		
+          
+			var loop_count = 0;
+			function run_loop() 
+			{
+				const cur_time = Date.now();
+				if (cur_time - last_run_loop >= 1000 / 15) 
+				{
+					context.clearRect(0, 0, canvas.width, canvas.height);
+					
+					for (const boid of boidsprites) 
+					{
+
+						boid.updateBoid(boidsprites, mysprites[0]); // pass the main sprite to boids
+
+					}	
+					
+					for (const sprite of mysprites) 
+					{
+
+						sprite.update();
+					}
+
+					
+					loop_count += 1;
+
+					last_run_loop = cur_time;
+				}
+
+				requestAnimationFrame(run_loop);
+			}
+
+
+            var mysprites = [];
+			var boidsprites = [];
+            var last_run_loop = 0;
+
+
+            $(document).ready(function () 
+			{
+				const keySprite = new user_control(300, 300, "main");
+				
+				mysprites.push(keySprite);
+				
+				
+				// Create 100 sprites at random positions within the canvas
+				for (let i = 1; i <= 1000; i++) 
+				{
+					const boid = new boid_control(
+					Math.random() * canvas.width, 
+					Math.random() * canvas.height, 
+					"NPC_" + i);
+					boid.current_state = "idle";
+					boidsprites.push(boid);
+					
+				}
+				
+                last_run_loop = Date.now();
+				
+                requestAnimationFrame(run_loop);
+            });
+        })();
+    </script>
+</body>
+</html>

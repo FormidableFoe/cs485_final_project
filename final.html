@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
 	<title>They're Everywhere!"</title>
@@ -5,7 +6,7 @@
 	<script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
 
     <style>
-	{ margin:0; padding:0; } /* to remove the top and left whitespace */
+	* { margin:0; padding:0; } /* to remove the top and left whitespace */
 	html, body { 
 		width:100%; 
 		height:100%; 
@@ -651,55 +652,46 @@
 
 				}
 
-				get_direction()
-				{
-					const x_dir = this.destination_x - this.current_center_x; // Direction on x-axis
-					const y_dir = this.destination_y - this.current_center_y; // Direction on y-axis
+				get_direction() {
+    const x_dir = this.destination_x - this.current_center_x; // Direction on x-axis
+    const y_dir = this.destination_y - this.current_center_y; // Direction on y-axis
 
-					let tolerance_x = this.max_speed;
-					let tolerance_y = this.max_speed;
-					
+    console.log(`get_direction(): x_dir=${x_dir}, y_dir=${y_dir}`);
 
-					if (x_dir > tolerance_x && y_dir < -tolerance_y) 
-					{
-						this.next_action = "NorthEast";
-					} 
-					else if (x_dir > tolerance_x && y_dir > tolerance_y) 
-					{
-						this.next_action = "SouthEast";
-					}
-					else if (x_dir < -tolerance_x && y_dir < -tolerance_y) 
-					{
-						this.next_action = "NorthWest";
-					} 
-					else if (x_dir < -tolerance_x && y_dir > tolerance_y) 
-					{
-						this.next_action = "SouthWest";
-					} 
-					else if (y_dir < -tolerance_y) 
-					{
-						this.next_action = "North";
-					} 
-					else if (y_dir > tolerance_y) 
-					{
-						this.next_action = "South";
-					} 
-					else if (x_dir > tolerance_x) 
-					{
-						this.next_action = "East";
-					} 
-					else if (x_dir < -tolerance_x) 
-					{
-						this.next_action = "West";
-					}
-					else
-					{
-						this.next_action = "Idle";
-						control = "keyboard";
-					}
-					
+    let tolerance_x = this.max_speed*2;
+    let tolerance_y = this.max_speed*2;
 
-				}
+    // Stabilize directions so small changes don't flip the action constantly
+    const stableX = Math.abs(x_dir) < tolerance_x ? 0 : x_dir;
+    const stableY = Math.abs(y_dir) < tolerance_y ? 0 : y_dir;
+
+    console.log(`Stable directions: stableX=${stableX}, stableY=${stableY}`);
+
+    if (stableX > 0 && stableY < 0) {
+        this.next_action = "NorthEast";
+    } else if (stableX > 0 && stableY > 0) {
+        this.next_action = "SouthEast";
+    } else if (stableX < 0 && stableY < 0) {
+        this.next_action = "NorthWest";
+    } else if (stableX < 0 && stableY > 0) {
+        this.next_action = "SouthWest";
+    } else if (stableY < 0) {
+        this.next_action = "North";
+    } else if (stableY > 0) {
+        this.next_action = "South";
+    } else if (stableX > 0) {
+        this.next_action = "East";
+    } else if (stableX < 0) {
+        this.next_action = "West";
+    } else {
+        this.next_action = "Idle";
+        console.log('No movement detected, switching to keyboard control');
+        control = "keyboard";
+    }
+
+    console.log(`Chosen action: ${this.next_action}`);
+}
+
 		
 				pathing_snap()
 				{
@@ -800,11 +792,11 @@
 					
 					this.set_next_location(this.current_x + step_x, this.current_y + step_y);
 					this.set_next_center();
-					<!-- if (control == "mouse")  -->
-					<!-- { -->
-						<!-- var temp = structuredClone(this); -->
-						<!-- console.log(this.velocity.x); -->
-					<!-- } -->
+					// if (control == "mouse")
+					// {
+					//     var temp = structuredClone(this);
+					//     console.log(this.velocity.x);
+					// }
 					
 					
 					if (control == "mouse") 
@@ -815,11 +807,11 @@
 					this.check_bounds();	
 
 					
-					<!-- if (control == "mouse")  -->
-					<!-- { -->
-						<!-- console.log(this.velocity.x); -->
-						<!-- this.compare_sprites(temp); -->
-					<!-- } -->
+					// if (control == "mouse")
+					// {
+					//     console.log(this.velocity.x);
+					//     this.compare_sprites(temp);
+					// }
 					super.run();
 				}
 	  

@@ -1,7 +1,8 @@
 <html>
 <head>
 	<title>They're Everywhere!"</title>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+	
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.4.1/lib/p5.min.js"></script>
 	<script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
 
     <style>
@@ -22,6 +23,12 @@
     <script>
         (function() 
 		{
+			const scale = .3;
+			const number_of_boids = 15;
+			const perceptionradius = 100;
+			const max_speed = 20;
+			const force = .1;
+			
             const canvas = document.getElementById("main_canvas");
             const context = canvas.getContext("2d");
 
@@ -253,12 +260,12 @@
                     this.current_action = "idle";
 					this.next_action = "Idle";
 					
-                    this.scale = .6;
+                    this.scale = scale;
 					
                     this.velocity = { x: 0, y: 0 };
 					this.acceleration = { x: 0, y: 0 };
 					
-					this.max_speed = 10;
+					this.max_speed = max_speed;
                 }
 				
 				
@@ -291,53 +298,63 @@
 				set_current_x(x)
 				{
 					this.current_x = x;
+					this.set_current_center();
 				}
 				
 				set_next_x(x)
 				{
 					this.next_x = x;
+					this.set_next_center();
 				}
 
 				set_current_y(y)
 				{
                     this.current_y = y;
+					this.set_current_center();
 				}
 								
 				set_next_y(y)
 				{
 					this.next_y = y;
+					this.set_next_center();
 				}
 				
 				set_location(x, y)
 				{
 					this.current_x = x;
                     this.current_y = y;
+					this.set_current_center();
 				}
 								
 				set_next_location(x, y)
 				{
 					this.next_x = x;
 					this.next_y = y;
+					this.set_next_center();
 				}
 
 				set_current_height(h)
 				{
 					this.current_h = h * this.scale;
+					this.set_current_center();
 				}
 				
 				set_next_height(h)
 				{
 					this.next_h = h * this.scale;
+					this.set_next_center();
 				}
 				
 				set_current_width(w)
 				{
 					this.current_w = w * this.scale;
+					this.set_current_center();
 				}
 								
 				set_next_width(w)
 				{
 					this.next_w = w * this.scale;
+					this.set_next_center();
 				}
 				
 				set_current_center()
@@ -526,7 +543,33 @@
 					this.destination_y = 0;
 				}
 				
-				
+								
+				update() 
+				{		
+					if (control == "mouse") 
+					{
+						this.get_next_animation(); 
+					}
+					
+					this.set_next_frame();	
+
+
+					this.set_velocity();
+
+					let step_x = this.velocity.x + this.acceleration.x;
+					let step_y = this.velocity.y + this.acceleration.y;
+					
+					this.set_next_location(this.current_x + step_x, this.current_y + step_y);
+
+					// this.pathing_snap;
+
+					this.check_bounds();	
+
+					super.run();
+
+				}
+
+				// used to find the dang wiggle
 				compare_sprites(other) 
 				{
 					if (other.current_x != this.current_x) 
@@ -620,14 +663,6 @@
 					}
 				}
 
-				
-				
-				
-				print_destinations()
-				{
-					console.log("Dest X:", this.destination_x, "\nDest Y:", this.destination_x);
-				}
-				
 				set_destination_x(x)
 				{
 					this.destination_x = x;
@@ -637,21 +672,8 @@
 				{
 					this.destination_y = y;
 				}
-				
-				update() 
-				{		
-					if (control == "mouse") 
-					{
-						this.get_direction();
-					}
-					
-					this.set_next_frame();	
 
-					this.move();
-
-				}
-
-				get_direction()
+				get_next_animation()
 				{
 					const x_dir = this.destination_x - this.current_center_x; // Direction on x-axis
 					const y_dir = this.destination_y - this.current_center_y; // Direction on y-axis
@@ -696,33 +718,79 @@
 					{
 						this.next_action = "Idle";
 						control = "keyboard";
+						this.destination_x = this.current_center_x;
+						this.destination_y = this.current_center_y;
 					}
 					
 
 				}
 		
+				// didn't end up using, seems fine without
 				pathing_snap()
 				{
 					
 					const x_direction = this.destination_x - this.next_center_x; // Direction on x-axis
 					const y_direction = this.destination_y - this.next_center_y; // Direction on y-axis
 
-
 					if (Math.abs(x_direction) < this.max_speed) 
 					{
-						this.set_destination_x(this.next_center_x);
+						//this.set_destination_x(this.next_center_x);
 						this.set_next_location(this.current_x + x_direction, this.next_y);
 					}
 					
 					if (Math.abs(y_direction) < this.max_speed) 
 					{
-						this.set_destination_y(this.next_center_y);
+						//this.set_destination_y(this.next_center_y);
 						this.set_next_location(this.next_x, this.current_y + y_direction);
 					}
 
 				}
 				
-				set_velocity_x()
+				set_velocity()
+				{
+					if (control === "keyboard")
+					{
+						this.set_velocity_x_keyboard();
+						this.set_velocity_y_keyboard();
+					}
+					else
+					{
+						this.set_velocity_mouse();
+					}
+				}
+				
+				set_velocity_mouse()
+				{
+				
+					var vector = {x: this.destination_x - this.current_center_x, y: this.destination_y - this.current_center_y};
+					console.log("First:", vector, this.max_speed);
+					this.normalize(vector);
+					console.log("second:", vector, this.max_speed);
+					this.limit(vector, this.max_speed);
+					this.velocity = vector;
+					console.log("third:", vector, this.max_speed);
+				}
+				
+				normalize(vector) 
+				{
+					let magnitude = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
+					if (magnitude > 0) 
+					{
+						vector.x /= magnitude;
+						vector.y /= magnitude;
+					}
+				}
+
+				limit(vector, max) 
+				{
+					let magnitude = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
+
+					vector.x = (vector.x / magnitude) * max;
+					vector.y = (vector.y / magnitude) * max;
+
+				}
+				
+				set_velocity_x_keyboard()
 				{
 					this.velocity.x = 0;
 
@@ -741,7 +809,7 @@
 					}
 				}
 				
-				set_velocity_y()
+				set_velocity_y_keyboard()
 				{
 					this.velocity.y = 0;
 					
@@ -763,66 +831,32 @@
 
 	  			check_bounds()
 				{
-					if (this.current_x <= 0) // left
+					if (this.next_x <= 0) // left
 					{
-						this.set_current_x(0);
-						this.destination_x = this.current_w / 2;
+						this.set_next_x(0);
+						this.destination_x = this.next_w / 2;
 					}
 					
-					if (this.current_x + this.current_w >= canvas.width) // right
+					if (this.next_x + this.next_w >= canvas.width) // right
 					{
-						this.set_current_x(canvas.width - this.current_w); 
-						this.destination_x = canvas.width - (this.current_w / 2);
+						this.set_next_x(canvas.width - this.next_w); 
+						this.destination_x = canvas.width - (this.next_w / 2);
 					}
 					
-					if (this.current_y <= 0) // top
+					if (this.next_y <= 0) // top
 					{
-						this.set_current_y(0);
-						this.destination_y = this.current_h / 2;
+						this.set_next_y(0);
+						this.destination_y = this.next_h / 2;
 					}
 
-					if (this.current_y + this.current_h >= canvas.height) // bottom
+					if (this.next_y + this.next_h >= canvas.height) // bottom
 					{
-						this.set_current_y(canvas.height - this.current_h);
-						this.destination_y = canvas.height - (this.current_h / 2);
+						this.set_next_y(canvas.height - this.next_h);
+						this.destination_y = canvas.height - (this.next_h / 2);
 					}
 					
 				}
-      
-				move() 
-				{	
 
-					this.set_velocity_x();
-					this.set_velocity_y();
-
-					let step_x = this.velocity.x + this.acceleration.x;
-					let step_y = this.velocity.y + this.acceleration.y;
-					
-					this.set_next_location(this.current_x + step_x, this.current_y + step_y);
-					this.set_next_center();
-					<!-- if (control == "mouse")  -->
-					<!-- { -->
-						<!-- var temp = structuredClone(this); -->
-						<!-- console.log(this.velocity.x); -->
-					<!-- } -->
-					
-					
-					if (control == "mouse") 
-					{
-						this.pathing_snap();
-					}	
-
-					this.check_bounds();	
-
-					
-					<!-- if (control == "mouse")  -->
-					<!-- { -->
-						<!-- console.log(this.velocity.x); -->
-						<!-- this.compare_sprites(temp); -->
-					<!-- } -->
-					super.run();
-				}
-	  
 			}
 			
 			class boid_control extends Sprite 
@@ -830,9 +864,9 @@
 				constructor(x, y, name) 
 				{
 					super(x, y, name);
-					this.perceptionradius = 100; // Range to sense nearby boids
-					this.maxspeed = 10; // Maximum speed
-					this.maxforce = .2; // Maximum steering force
+					this.perceptionradius = perceptionradius; // Range to sense nearby boids
+					this.maxspeed = max_speed; // Maximum speed
+					this.maxforce = force; // Maximum steering force
 					this.velocity = {
 						x: (Math.random() - 0.5) * 2, // Small random initial velocity
 						y: (Math.random() - 0.5) * 2
@@ -840,75 +874,75 @@
 
 				}
 
-				updateBoid(boids, mainSprite) {
-
-
+				updateBoid(boids, mainSprite) 
+				{
 					let separationForce = this.separation(boids);
 					let alignmentForce = this.alignment(boids, mainSprite);
 					let cohesionForce = this.cohesion(boids, mainSprite);
 
-					// Weight forces for balancing
-					separationForce.x *= 1.5;
-					separationForce.y *= 1.5;
-
-					this.acceleration.x += separationForce.x + alignmentForce.x + cohesionForce.x;// something in here is making them null
+					this.acceleration.x += separationForce.x + alignmentForce.x + cohesionForce.x;
 					this.acceleration.y += separationForce.y + alignmentForce.y + cohesionForce.y;
 
-
-					// Update velocity and limit speed
 					this.velocity.x += this.acceleration.x;
 					this.velocity.y += this.acceleration.y;
 
 					this.limit(this.velocity, this.maxspeed);
 
+					this.set_next_location(this.next_x + this.velocity.x, this.next_y + this.velocity.y);
 
-					// Update position
-					this.next_x += this.velocity.x;
-					this.next_y += this.velocity.y;
-
-					// Reset acceleration for next frame
 					this.acceleration.x = 0;
 					this.acceleration.y = 0;
 
-					// Check bounds
+					this.get_direction();
+					this.set_next_frame();
 					this.check_bounds();
-
-					// Set the next action based on movement
-					this.move();
+					super.run();
 
 				}
 
-				move() 
+				get_direction()
 				{
-					// Determine the direction of movement based on velocity
-					if (this.velocity.x > 0 && this.velocity.y < 0) {
+					if (this.velocity.x > 0 && this.velocity.y < 0) 
+					{
 						this.next_action = "NorthEast";
-					} else if (this.velocity.x > 0 && this.velocity.y > 0) {
+					} 
+					else if (this.velocity.x > 0 && this.velocity.y > 0) 
+					{
 						this.next_action = "SouthEast";
-					} else if (this.velocity.x < 0 && this.velocity.y < 0) {
+					} 
+					else if (this.velocity.x < 0 && this.velocity.y < 0) 
+					{
 						this.next_action = "NorthWest";
-					} else if (this.velocity.x < 0 && this.velocity.y > 0) {
+					}
+					else if (this.velocity.x < 0 && this.velocity.y > 0) 
+					{
 						this.next_action = "SouthWest";
-					} else if (this.velocity.y < 0) {
+					} 
+					else if (this.velocity.y < 0) 
+					{
 						this.next_action = "North";
-					} else if (this.velocity.y > 0) {
+					} 
+					else if (this.velocity.y > 0) 
+					{
 						this.next_action = "South";
-					} else if (this.velocity.x > 0) {
+					} 
+					else if (this.velocity.x > 0) 
+					{
 						this.next_action = "East";
-					} else if (this.velocity.x < 0) {
+					} 
+					else if (this.velocity.x < 0) 
+					{
 						this.next_action = "West";
-					} else {
+					} 
+					else 
+					{
 						this.next_action = "Idle";
 					}
-					
-					this.set_next_frame();
-
-					// Call the parent's run method to render the sprite
-					super.run();
 				}
 				
-				separation(boids) {
-					let desiredSeparation = this.perceptionradius / 2;
+				separation(boids) 
+				{
+					let desiredSeparation = this.perceptionradius;
 					let steer = { x: 0, y: 0 };
 					let count = 0;
 
@@ -921,7 +955,8 @@
 							continue;
 						}
 
-						if (other !== this && distance < desiredSeparation) {
+						if (other !== this && distance < desiredSeparation) 
+						{
 							let diff = { x: this.current_x - other.current_x, y: this.current_y - other.current_y };
 							this.normalize(diff);
 							diff.x /= distance; // Avoid dividing by zero or invalid values
@@ -945,16 +980,18 @@
 
 					return steer;
 				}
-
+				
 				alignment(boids, mainSprite) 
 				{
 					let neighborDist = this.perceptionradius;
 					let sum = { x: mainSprite.velocity?.x || 0, y: mainSprite.velocity?.y || 0 }; // Include main sprite's velocity
 					let count = 1; // Start with 1 to account for the main sprite
 
-					for (let other of boids) {
+					for (let other of boids) 
+					{
 						let distance = this.distance(other);
-						if (other !== this && distance < neighborDist) {
+						if (other !== this && distance < neighborDist) 
+						{
 							sum.x += other.velocity.x;
 							sum.y += other.velocity.y;
 							count++;
@@ -1016,7 +1053,8 @@
 				normalize(vector) 
 				{
 					let magnitude = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
-					if (magnitude > 0) {
+					if (magnitude > 0) 
+					{
 						vector.x /= magnitude;
 						vector.y /= magnitude;
 					}
@@ -1025,7 +1063,8 @@
 				limit(vector, max) 
 				{
 					let magnitude = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
-					if (magnitude > max) {
+					if (magnitude > max) 
+					{
 						vector.x = (vector.x / magnitude) * max;
 						vector.y = (vector.y / magnitude) * max;
 					}
@@ -1034,30 +1073,32 @@
 				check_bounds() 
 				{
 					// Ensure the boid stays within canvas bounds
-					if (this.current_x <= 0) {
-						this.current_x = 0;
+					if (this.next_x <= 0) 
+					{
+						this.next_x = 0;
 						this.velocity.x = Math.abs(this.velocity.x); // Bounce off the left edge
 					}
 
-					if (this.current_x + this.current_w >= canvas.width) {
-						this.current_x = canvas.width - this.current_w;
+					if (this.next_x + this.next_w >= canvas.width) 
+					{
+						this.next_x = canvas.width - this.next_w;
 						this.velocity.x = -Math.abs(this.velocity.x); // Bounce off the right edge
 					}
 
-					if (this.current_y <= 0) {
-						this.current_y = 0;
+					if (this.next_y <= 0) 
+					{
+						this.next_y = 0;
 						this.velocity.y = Math.abs(this.velocity.y); // Bounce off the top edge
 					}
 
-					if (this.current_y + this.current_h >= canvas.height) {
-						this.current_y = canvas.height - this.current_h;
+					if (this.next_y + this.next_h >= canvas.height) 
+					{
+						this.next_y = canvas.height - this.next_h;
 						this.velocity.y = -Math.abs(this.velocity.y); // Bounce off the bottom edge
 					}
 				}
 			}
 
-		
-          
 			var loop_count = 0;
 			function run_loop() 
 			{
@@ -1102,7 +1143,7 @@
 				
 				
 				// Create 100 sprites at random positions within the canvas
-				for (let i = 1; i <= 1000; i++) 
+				for (let i = 1; i <= number_of_boids + 1; i++) 
 				{
 					const boid = new boid_control(
 					Math.random() * canvas.width, 

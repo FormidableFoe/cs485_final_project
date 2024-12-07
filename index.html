@@ -763,12 +763,9 @@
 				{
 				
 					var vector = {x: this.destination_x - this.current_center_x, y: this.destination_y - this.current_center_y};
-					console.log("First:", vector, this.max_speed);
 					this.normalize(vector);
-					console.log("second:", vector, this.max_speed);
 					this.limit(vector, this.max_speed);
 					this.velocity = vector;
-					console.log("third:", vector, this.max_speed);
 				}
 				
 				normalize(vector) 
